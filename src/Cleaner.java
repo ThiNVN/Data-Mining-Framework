@@ -16,7 +16,7 @@ import java.util.Set;
 public class Cleaner {
 
     public static void main(String[] args) {
-        String inputFilePath = "data/cleaned_weather_data.csv";
+        String inputFilePath = "src/data/weather_classification_data.csv";
         String cleanedFilePath = "src/data/cleaned_weather_data.csv"; // File to save the cleaned data
         List<String> columnsToMine = Arrays.asList("Weather Type", "Cloud Cover", "Season"); // Specify categorical
         // columns
