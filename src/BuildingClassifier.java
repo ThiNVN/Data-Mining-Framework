@@ -5,15 +5,22 @@ import weka.classifiers.functions.LinearRegression;
 import weka.classifiers.functions.Logistic;
 import weka.classifiers.functions.SMOreg;
 import weka.classifiers.meta.*;
+import weka.classifiers.rules.OneR;
+import weka.classifiers.rules.ZeroR;
 import weka.classifiers.trees.DecisionStump;
 import weka.classifiers.trees.J48;
 import weka.classifiers.trees.RandomForest;
 import weka.classifiers.trees.RandomTree;
+import weka.clusterers.ClusterEvaluation;
+import weka.clusterers.SimpleKMeans;
+import weka.core.EuclideanDistance;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.classifiers.*;
 import weka.core.converters.ConverterUtils.DataSource;
 import weka.filters.unsupervised.attribute.Remove;
+import weka.filters.unsupervised.attribute.NominalToBinary;
+import weka.filters.Filter;
 
 import java.util.Random;
 
@@ -22,13 +29,14 @@ public class BuildingClassifier {
     //Load the dataset source
     public static Instances loadData(String path) throws Exception {
         DataSource source = new DataSource(path);
-        Instances data = source.getDataSet();
-        data.setClassIndex(data.numAttributes() - 1);
-        return data;
+        Instances dataset = source.getDataSet();
+//        data.setClassIndex(data.numAttributes() - 1);
+        return dataset;
     }
 
     //Naive bayes
     public static Classifier naiveBayes(Instances dataset) throws Exception {
+        dataset.setClassIndex(dataset.numAttributes() - 1);
         //create and build classifier
         NaiveBayes nb = new NaiveBayes();
         nb.buildClassifier(dataset);
@@ -44,6 +52,38 @@ public class BuildingClassifier {
         System.out.println(tree.getCapabilities().toString());
         System.out.println(tree.graph());
         return tree;
+    }
+
+    //OneR
+    public static Classifier oneR(Instances dataset) throws Exception {
+        OneR oneR = new OneR();
+        oneR.buildClassifier(dataset);
+        System.out.println(oneR.toString());
+        return oneR;
+    }
+
+    //ZeroR
+    public static Classifier zeroR(Instances dataset) throws Exception {
+        ZeroR zeroR = new ZeroR();
+        zeroR.buildClassifier(dataset);
+        System.out.println(zeroR.toString());
+        return zeroR;
+    }
+
+    //Random Tree
+    public static Classifier randomTree(Instances dataset) throws Exception {
+        RandomTree tree = new RandomTree();
+        tree.buildClassifier(dataset);
+        System.out.println(tree.getCapabilities().toString());
+        return tree;
+    }
+
+    //Random Forest
+    public static Classifier randomForest(Instances dataset) throws Exception {
+        RandomForest rf = new RandomForest();
+        rf.buildClassifier(dataset);
+        System.out.println(rf.toString());
+        return rf;
     }
 
     //Filter the training set
@@ -87,7 +127,7 @@ public class BuildingClassifier {
     }
 
     //Evaluate Model
-    public static void evaluateModelMethod(weka.classifiers.Classifier classifier, weka.core.Instances training_set, weka.core.Instances test_set) throws Exception {
+    public static Evaluation evaluateModelMethod(weka.classifiers.Classifier classifier, weka.core.Instances training_set, weka.core.Instances test_set) throws Exception {
         Evaluation eval = new Evaluation(training_set);
         //Run evaluation
         eval.evaluateModel(classifier, test_set);
@@ -95,30 +135,23 @@ public class BuildingClassifier {
         //Print evaluation
         System.out.println(eval.toSummaryString("Evaluation result:\n", true));
         /*
-        System.out.println("Correct % = " + eval.pctCorrect());
-        System.out.println("Incorrect % = " + eval.pctIncorrect());
         System.out.println("AUC = " + eval.areaUnderPRC(0));
-        System.out.println("Kappa = " + eval.kappa());
-        System.out.println("MAE = " + eval.meanAbsoluteError());
-        System.out.println("RMSE = " + eval.rootMeanSquaredError());
-        System.out.println("RAE = " + eval.relativeAbsoluteError());
-        System.out.println("RRSE = " + eval.rootRelativeSquaredError());
         System.out.println("Precision = " + eval.precision(0));
         System.out.println("Recall = " + eval.recall(0));
         System.out.println("fMeasure = " + eval.fMeasure(0));
         System.out.println("Error rate = " + eval.errorRate() + "\n");
         System.out.println(eval.toMatrixString("=== Overall Confusion Matrix ===\n"));
         */
-
+        return eval;
     }
 
     //Cross-validation using 10 folds
-    public void evaluateModelFolds(weka.classifiers.Classifier classifier, Instances training_set, Instances test_set) throws Exception {
+    public static void evaluateModelFolds(weka.classifiers.Classifier classifier, Instances training_set, Instances test_set) throws Exception {
         training_set.setClassIndex(training_set.numAttributes() - 1);
-        //Initilize
+        //Initialize
         int seed = 1;
         int folds = 10;
-        Random rand = new Random(1);
+        Random rand = new Random(seed);
 
         //Test set
         test_set.setClassIndex(test_set.numAttributes() - 1);
@@ -141,21 +174,14 @@ public class BuildingClassifier {
 
             //Print evaluation
             System.out.println(eval.toSummaryString("Evaluation result:\n", false));
-        /*
-        System.out.println("Correct % = " + eval.pctCorrect());
-        System.out.println("Incorrect % = " + eval.pctIncorrect());
-        System.out.println("AUC = " + eval.areaUnderPRC(0));
-        System.out.println("Kappa = " + eval.kappa());
-        System.out.println("MAE = " + eval.meanAbsoluteError());
-        System.out.println("RMSE = " + eval.rootMeanSquaredError());
-        System.out.println("RAE = " + eval.relativeAbsoluteError());
-        System.out.println("RRSE = " + eval.rootRelativeSquaredError());
-        System.out.println("Precision = " + eval.precision(0));
-        System.out.println("Recall = " + eval.recall(0));
-        System.out.println("fMeasure = " + eval.fMeasure(0));
-        System.out.println("Error rate = " + eval.errorRate() + "\n");
-        System.out.println(eval.toMatrixString("=== Overall Confusion Matrix ===\n"));
-        */
+            /*
+            System.out.println("AUC = " + eval.areaUnderPRC(0));
+            System.out.println("Precision = " + eval.precision(0));
+            System.out.println("Recall = " + eval.recall(0));
+            System.out.println("fMeasure = " + eval.fMeasure(0));
+            System.out.println("Error rate = " + eval.errorRate() + "\n");
+            System.out.println(eval.toMatrixString("=== Overall Confusion Matrix ===\n"));
+            */
         }
 
     }
@@ -238,4 +264,92 @@ public class BuildingClassifier {
         //Print out extracted rules
         System.out.println(apriori);
     }
+
+    //Clustering
+    public static weka.clusterers.SimpleKMeans clustering(Instances dataset, int numberOfClusters) throws Exception {
+        //New instance of clusterer
+        SimpleKMeans kmeans = new SimpleKMeans();
+        //Number of clusters
+        kmeans.setNumClusters(numberOfClusters);
+        //Set distance function
+        kmeans.setDistanceFunction(new weka.core.EuclideanDistance());
+        //Build clusterer
+        kmeans.buildClusterer(dataset);
+        System.out.println(kmeans);
+
+        //Evaluate clusterer
+        ClusterEvaluation clusterEvaluation = new ClusterEvaluation();
+        clusterEvaluation.setClusterer(kmeans);
+        clusterEvaluation.evaluateClusterer(dataset);
+        System.out.println(clusterEvaluation.clusterResultsToString());
+
+        return kmeans;
+    }
+
+    //Classify clusters
+    public static void classifyCluster(Instances dataset, weka.clusterers.SimpleKMeans kmeans) throws Exception {
+        dataset.setClassIndex(dataset.numAttributes() - 1);
+        for (Instance instance : dataset) {
+            int clusterIndex = kmeans.clusterInstance(instance);
+        }
+        for (int i = 0; i < kmeans.getNumClusters(); i++) {
+            Instances clusterInstances = new Instances(dataset, 0);
+            for (Instance instance : dataset) {
+                if(kmeans.clusterInstance(instance) == i) {
+                    clusterInstances.add(instance);
+                }
+            }
+            Classifier nb = J48_tree(clusterInstances);
+
+            // Shuffle the dataset for randomness
+            clusterInstances.randomize(new Random(1)); // Seed for reproducibility
+
+            // Split percentage for training (70% training, 30% testing)
+            int trainSize = (int) Math.round(clusterInstances.numInstances() * 0.7);
+            int testSize = clusterInstances.numInstances() - trainSize;
+
+            // Generate training and testing sets
+            Instances train = new Instances(clusterInstances, 0, trainSize);
+            Instances test = new Instances(clusterInstances, trainSize, testSize);
+
+            evaluateModelMethod(nb, train, test);
+        }
+    }
+
+    //Clustering with ignored attribute
+    public static weka.clusterers.SimpleKMeans clusteringWithIgnored(Instances dataset, int numberOfClusters, String activeAttribute) throws Exception {
+        //New instance of clusterer
+        SimpleKMeans kmeans = new SimpleKMeans();
+        //Number of clusters
+        kmeans.setNumClusters(numberOfClusters);
+        //Set distance function
+        EuclideanDistance distanceFunction = new EuclideanDistance();
+        distanceFunction.setAttributeIndices(activeAttribute);
+        kmeans.setDistanceFunction(distanceFunction);
+        //Build clusterer
+        kmeans.buildClusterer(dataset);
+        System.out.println(kmeans);
+
+        //Evaluate clusterer
+        ClusterEvaluation clusterEvaluation = new ClusterEvaluation();
+        clusterEvaluation.setClusterer(kmeans);
+        clusterEvaluation.evaluateClusterer(dataset);
+        System.out.println(clusterEvaluation.clusterResultsToString());
+
+        return kmeans;
+    }
+
+    //Encode nominal
+    public static Instances encodeNominalToBinary(Instances dataset, String encodeAttribute) throws Exception {
+        //Create Filter
+        NominalToBinary nominalToBinary = new NominalToBinary();
+        //Set index of attribute to be encoded
+        nominalToBinary.setAttributeIndices(encodeAttribute);
+        //Input the dataset into the Filter
+        nominalToBinary.setInputFormat(dataset);
+        //Apply Filter to dataset
+        Instances encodedInstances = Filter.useFilter(dataset, nominalToBinary);
+        return encodedInstances;
+    }
+
 }

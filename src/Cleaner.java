@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+//Step 1: Data preprocessing
 public class Cleaner {
 
     public static void main(String[] args) {

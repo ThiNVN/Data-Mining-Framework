@@ -1,0 +1,17 @@
+NaiveBayes: 	Correctly Classified Instances        3452               87.1717 %
+		        Incorrectly Classified Instances       508               12.8283 %
+
+J48_tree:	Correctly Classified Instances        3600               90.9091 %
+		    Incorrectly Classified Instances       360                9.0909 %
+
+OneR:		Correctly Classified Instances        2240               56.5657 %
+		    Incorrectly Classified Instances      1720               43.4343 %
+
+ZeroR:		Correctly Classified Instances         949               23.9646 %
+		    Incorrectly Classified Instances      3011               76.0354 %
+
+RandomTree:	Correctly Classified Instances        3597               90.8333 %
+		    Incorrectly Classified Instances       363                9.1667 %
+
+RandomForest:	Correctly Classified Instances        3633               91.7424 %
+		        Incorrectly Classified Instances       327                8.2576 %

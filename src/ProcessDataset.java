@@ -6,18 +6,18 @@ import weka.core.converters.CSVLoader;
 import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.Remove;
 
-public class ProcessAttribute {
+public class ProcessDataset {
 
-    public void csvToArff() throws Exception {
+    public static void csvToArff(String filePath) throws Exception {
         //Load csv file
         CSVLoader loader = new CSVLoader();
-        loader.setSource(new File("src/wind_dataset.csv"));
+        loader.setSource(new File(filePath));
         Instances dataset = loader.getDataSet();
 
         //Save as arff format
         ArffSaver saver = new ArffSaver();
         saver.setInstances(dataset);
-        saver.setFile(new File("src/output.arff"));
+        saver.setFile(new File("src/data/weather_classification.arff"));
         saver.writeBatch();
     }
 
