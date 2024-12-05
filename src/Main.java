@@ -36,20 +36,33 @@ public class Main {
         BuildingClassifier.classifyCluster(encodedDataset, kmeans);
 
         //Step 2: Build classification algorithm
-        //Build and print classifier
-        Classifier tree = BuildingClassifier.J48_tree(train);
-        //Evaluate and print classifier's evaluation
-        Evaluation eval = BuildingClassifier.evaluateModelMethod(tree, train, test);
-        System.out.println("AUC = " + eval.areaUnderPRC(0));
-        System.out.println("Precision = " + eval.precision(0));
-        System.out.println("Recall = " + eval.recall(0));
-        System.out.println("fMeasure = " + eval.fMeasure(0));
-        System.out.println("Error rate = " + eval.errorRate() + "\n");
-        System.out.println(eval.toMatrixString("=== Overall Confusion Matrix ===\n"));
+        //Build and print OneR classification
+        System.out.println("=== OneR ===");
+        Classifier tree = BuildingClassifier.oneR(dataset);
+        //Evaluate and print OneR classification
+        System.out.println("=== OneR evaluation ===");
+        Evaluation evalOneR = BuildingClassifier.evaluateModelMethod(tree, train, test);
+        System.out.println("AUC = " + evalOneR.areaUnderPRC(0));
+        System.out.println("Precision = " + evalOneR.precision(0));
+        System.out.println("Recall = " + evalOneR.recall(0));
+        System.out.println("fMeasure = " + evalOneR.fMeasure(0));
+        System.out.println("Error rate = " + evalOneR.errorRate() + "\n");
+        System.out.println(evalOneR.toMatrixString("=== Overall Confusion Matrix ===\n"));
+
+        //Build and print NaiveBayes classification
+        System.out.println("=== NaiveBayes ===");
+        Classifier nb = BuildingClassifier.naiveBayes(dataset);
+        System.out.println("=== NaiveBayes evaluation ===");
+        Evaluation evalNB = BuildingClassifier.evaluateModelMethod(nb, train, test);
+        System.out.println("AUC = " + evalNB.areaUnderPRC(0));
+        System.out.println("Precision = " + evalNB.precision(0));
+        System.out.println("Recall = " + evalNB.recall(0));
+        System.out.println("fMeasure = " + evalNB.fMeasure(0));
+        System.out.println("Error rate = " + evalNB.errorRate() + "\n");
+        System.out.println(evalOneR.toMatrixString("=== Overall Confusion Matrix ===\n"));
 
         //Step 4: Evaluate model using 10-fold cross-validation
-        System.out.println("=== 10-fold cross-validation ===");
-        BuildingClassifier.evaluateModelFolds(tree, train, test);
+
 
     }
 }
