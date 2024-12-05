@@ -1,3 +1,4 @@
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
@@ -7,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -15,270 +16,272 @@ import java.util.Set;
 
 public class Cleaner {
 
-    public static void main(String[] args) {
-        String inputFilePath = "src/data/weather_classification_data.csv";
-        String cleanedFilePath = "src/data/cleaned_weather_data.csv"; // File to save the cleaned data
-        List<String> columnsToMine = Arrays.asList("Weather Type", "Cloud Cover", "Season"); // Specify categorical
-        // columns
-        int minSupport = 2; // Minimum support threshold for frequent sequences
-        double trainTestRatio = 0.8; // 80% training, 20% testing
+	public static void main(String[] args) {
+		String inputFilePath = "weather_classification_data.csv";
+		String cleanedFilePath = "cleaned_weather_data.csv";
+		String trainingFilePath = "training_set.csv";
+		String testFilePath = "test_set.csv";
+		double trainingRatio = 0.8;
 
-        // Step 1: Clean the Data
-        cleanData(inputFilePath, cleanedFilePath);
+		try {
+			// Step 1: Clean Data and Calculate Modes
+			Map<String, String> columnModes = cleanDataAndCalculateModes(inputFilePath, cleanedFilePath);
 
-        // Step 2: Parse Sequences
-        List<List<String>> sequences = parseSequences(cleanedFilePath, columnsToMine);
-        if (sequences.isEmpty()) {
-            System.out.println("No valid sequences found. Please check the input file.");
-            return;
-        }
+			// Step 2: Print Modes
+			System.out.println("\nModes of Columns:");
+			columnModes.forEach((column, mode) -> System.out.printf("%s -> Mode: %s%n", column, mode));
 
-        // Step 3: Split Data
-        Map<String, List<List<String>>> splitData = splitData(sequences, trainTestRatio);
-        List<List<String>> trainingData = splitData.get("train");
-        List<List<String>> testData = splitData.get("test");
+			// Step 3: Load cleaned data
+			List<String[]> cleanedData = readData(cleanedFilePath);
 
-        System.out.println("Training Data Size: " + trainingData.size());
-        System.out.println("Test Data Size: " + testData.size());
+			// Extract headers from cleaned data
+			String[] headers = cleanedData.get(0);
+			cleanedData.remove(0); // Remove header row for processing
 
-        // Step 4: Calculate Statistics
-        calculateStatistics(cleanedFilePath);
+			// Normalize data
+			List<String[]> normalizedData = normalizeData(cleanedData, headers);
 
-        // Step 5: Mine Frequent Subsequences
-        Map<List<String>, Integer> frequentSequences = mineSequences(trainingData, minSupport);
-        System.out.println("Frequent Subsequences:");
-        for (Map.Entry<List<String>, Integer> entry : frequentSequences.entrySet()) {
-            System.out.println("Sequence: " + entry.getKey() + ", Support: " + entry.getValue());
-        }
-    }
+			// Encode categorical data
+			List<String[]> encodedData = encodeCategoricalData(normalizedData, headers);
 
-    public static void cleanData(String inputFilePath, String outputFilePath) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(inputFilePath));
-             BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath))) {
+			// Feature selection
+			List<String> selectedFeatures = Arrays.asList("Temperature", "Humidity");
+			List<String[]> finalData = selectFeatures(encodedData, headers, selectedFeatures);
 
-            String header = reader.readLine();
-            writer.write(header + "\n");
+			// Step 4: Identify Patterns
+			identifyPatterns(cleanedFilePath);
 
-            String[] headers = header.split(",");
-            List<List<Double>> numericColumns = new ArrayList<>();
-            for (int i = 0; i < headers.length; i++) {
-                numericColumns.add(new ArrayList<>());
-            }
+			// Step 5: Split data into training and test sets
+			splitData(finalData, headers, trainingFilePath, testFilePath, trainingRatio);
 
-            List<String[]> rows = new ArrayList<>();
-            String line;
+		} catch (Exception e) {
+			System.err.println("An error occurred: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
 
-            // Read and identify numeric values
-            while ((line = reader.readLine()) != null) {
-                String[] fields = line.split(",");
-                rows.add(fields);
-                for (int i = 0; i < fields.length; i++) {
-                    try {
-                        double value = Double.parseDouble(fields[i].trim());
-                        numericColumns.get(i).add(value);
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-            }
+	public static Map<String, String> cleanDataAndCalculateModes(String inputFilePath, String outputFilePath)
+			throws IOException {
+		Map<String, String> columnModes = new HashMap<>();
+		Set<String> uniqueRows = new HashSet<>();
+		List<Map<String, Integer>> valueCounts = new ArrayList<>();
+		List<String[]> rows = new ArrayList<>();
+		String[] headers;
 
-            // Calculate column means
-            double[] columnMeans = new double[headers.length];
-            for (int i = 0; i < headers.length; i++) {
-                List<Double> column = numericColumns.get(i);
-                columnMeans[i] = column.isEmpty() ? 0.0
-                        : column.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-            }
+		try (BufferedReader reader = new BufferedReader(new FileReader(inputFilePath));
+				BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath))) {
 
-            // Replace missing values and write cleaned data
-            for (String[] fields : rows) {
-                for (int i = 0; i < fields.length; i++) {
-                    if (fields[i].trim().isEmpty() || fields[i].trim().equalsIgnoreCase("null")
-                            || fields[i].trim().equalsIgnoreCase("undefined")) {
-                        if (!Double.isNaN(columnMeans[i]) && columnMeans[i] != 0.0) {
-                            fields[i] = String.valueOf(columnMeans[i]);
-                        }
-                    }
-                }
-                writer.write(String.join(",", fields) + "\n");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+			// Read header
+			String headerLine = reader.readLine();
+			if (headerLine == null)
+				throw new IOException("Input file is empty.");
+			headers = headerLine.split(",");
+			writer.write(headerLine + "\n");
 
-    // Parse categorical sequences from the CSV file
-    public static List<List<String>> parseSequences(String inputFilePath, List<String> columnsToMine) {
-        List<List<String>> sequences = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(inputFilePath))) {
-            String line = reader.readLine(); // Read header
-            String[] headers = line.split(",");
+			for (String header : headers) {
+				valueCounts.add(new HashMap<>());
+			}
 
-            // Determine indices of columns to mine
-            List<Integer> columnIndices = new ArrayList<>();
-            for (String column : columnsToMine) {
-                for (int i = 0; i < headers.length; i++) {
-                    if (headers[i].trim().equalsIgnoreCase(column)) {
-                        columnIndices.add(i);
-                        break;
-                    }
-                }
-            }
+			// Process rows
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (uniqueRows.add(line)) {
+					String[] fields = line.split(",");
+					rows.add(fields);
 
-            // Read and parse sequences
-            while ((line = reader.readLine()) != null) {
-                String[] fields = line.split(",");
-                List<String> sequence = new ArrayList<>();
-                for (int index : columnIndices) {
-                    sequence.add(fields[index].trim());
-                }
-                sequences.add(sequence);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return sequences;
-    }
+					for (int i = 0; i < fields.length; i++) {
+						String value = fields[i].trim();
+						if (!isMissingOrInvalid(value)) {
+							valueCounts.get(i).merge(value, 1, Integer::sum);
+						}
+					}
+				}
+			}
 
-    // Split data into training and test sets
-    public static Map<String, List<List<String>>> splitData(List<List<String>> sequences, double trainTestRatio) {
-        Map<String, List<List<String>>> splitData = new HashMap<>();
-        Collections.shuffle(sequences, new Random()); // Shuffle sequences randomly
+			// Calculate modes
+			for (int i = 0; i < headers.length; i++) {
+				Map<String, Integer> counts = valueCounts.get(i);
+				columnModes.put(headers[i], counts.entrySet().stream().max(Map.Entry.comparingByValue())
+						.map(Map.Entry::getKey).orElse("UNKNOWN"));
+			}
 
-        int trainSize = (int) (sequences.size() * trainTestRatio);
-        List<List<String>> trainingData = sequences.subList(0, trainSize);
-        List<List<String>> testData = sequences.subList(trainSize, sequences.size());
+			// Fill missing values and write cleaned data
+			for (String[] fields : rows) {
+				for (int i = 0; i < fields.length; i++) {
+					if (isMissingOrInvalid(fields[i])) {
+						fields[i] = columnModes.get(headers[i]);
+					}
+				}
+				writer.write(String.join(",", fields) + "\n");
+			}
 
-        splitData.put("train", new ArrayList<>(trainingData));
-        splitData.put("test", new ArrayList<>(testData));
-        return splitData;
-    }
+			System.out.println("Data cleaned and written to: " + outputFilePath);
+		}
 
-    // Calculate statistics for numeric columns in the CSV file
-    public static void calculateStatistics(String inputFilePath) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(inputFilePath))) {
-            String line = reader.readLine(); // Read header
-            String[] headers = line.split(",");
+		return columnModes;
+	}
 
-            List<List<Double>> numericColumns = new ArrayList<>();
-            for (int i = 0; i < headers.length; i++) {
-                numericColumns.add(new ArrayList<>());
-            }
+	public static boolean isMissingOrInvalid(String value) {
+		return value == null || value.trim().isEmpty() || value.equalsIgnoreCase("null")
+				|| value.equalsIgnoreCase("undefined");
+	}
 
-            while ((line = reader.readLine()) != null) {
-                String[] fields = line.split(",");
-                for (int i = 0; i < fields.length; i++) {
-                    try {
-                        double value = Double.parseDouble(fields[i].trim());
-                        numericColumns.get(i).add(value);
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-            }
+	public static List<String[]> readData(String filePath) throws IOException {
+		List<String[]> data = new ArrayList<>();
+		try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				data.add(line.split(","));
+			}
+		}
+		return data;
+	}
 
-            System.out.println("Basic Statistics:");
-            for (int i = 0; i < headers.length; i++) {
-                List<Double> column = numericColumns.get(i);
-                if (!column.isEmpty()) {
-                    double mean = column.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-                    double median = calculateMedian(column);
-                    double min = Collections.min(column);
-                    double max = Collections.max(column);
-                    double stdDev = calculateStandardDeviation(column, mean);
+	public static List<String[]> normalizeData(List<String[]> data, String[] headers) {
+		int numColumns = headers.length;
+		double[] minValues = new double[numColumns];
+		double[] maxValues = new double[numColumns];
+		Arrays.fill(minValues, Double.MAX_VALUE);
+		Arrays.fill(maxValues, Double.MIN_VALUE);
 
-                    System.out.printf("%s -> Mean: %.2f, Median: %.2f, Min: %.2f, Max: %.2f, StdDev: %.2f%n",
-                            headers[i], mean, median, min, max, stdDev);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+		// Find min and max values
+		for (String[] row : data) {
+			for (int i = 0; i < row.length; i++) {
+				try {
+					double value = Double.parseDouble(row[i]);
+					minValues[i] = Math.min(minValues[i], value);
+					maxValues[i] = Math.max(maxValues[i], value);
+				} catch (NumberFormatException ignored) {
+				}
+			}
+		}
 
-    private static double calculateMedian(List<Double> values) {
-        Collections.sort(values);
-        int size = values.size();
-        if (size % 2 == 0) {
-            return (values.get(size / 2 - 1) + values.get(size / 2)) / 2.0;
-        } else {
-            return values.get(size / 2);
-        }
-    }
+		// Normalize data
+		List<String[]> normalizedData = new ArrayList<>();
+		for (String[] row : data) {
+			String[] normalizedRow = new String[row.length];
+			for (int i = 0; i < row.length; i++) {
+				try {
+					double value = Double.parseDouble(row[i]);
+					if (maxValues[i] != minValues[i]) {
+						normalizedRow[i] = String.valueOf((value - minValues[i]) / (maxValues[i] - minValues[i]));
+					} else {
+						normalizedRow[i] = "0"; // Default for zero range
+					}
+				} catch (NumberFormatException e) {
+					normalizedRow[i] = row[i]; // Retain categorical data
+				}
+			}
+			normalizedData.add(normalizedRow);
+		}
 
-    private static double calculateStandardDeviation(List<Double> values, double mean) {
-        double variance = values.stream().mapToDouble(v -> Math.pow(v - mean, 2)).sum() / values.size();
-        return Math.sqrt(variance);
-    }
+		return normalizedData;
+	}
 
-    // Mine frequent sequences using an Apriori-like approach
-    public static Map<List<String>, Integer> mineSequences(List<List<String>> sequences, int minSupport) {
-        Map<List<String>, Integer> allFrequentSequences = new HashMap<>();
+	public static List<String[]> encodeCategoricalData(List<String[]> data, String[] headers) {
+		Map<String, Map<String, Integer>> encoders = new HashMap<>();
+		for (int i = 0; i < headers.length; i++) {
+			Map<String, Integer> encoder = new HashMap<>();
+			int index = 0;
+			for (String[] row : data) {
+				String value = row[i];
+				if (!encoder.containsKey(value)) {
+					encoder.put(value, index++);
+				}
+			}
+			encoders.put(headers[i], encoder);
+		}
 
-        // Generate initial 1-item sequences and count their occurrences
-        Map<List<String>, Integer> candidateSequences = generateInitialCandidates(sequences);
+		List<String[]> encodedData = new ArrayList<>();
+		for (String[] row : data) {
+			String[] encodedRow = new String[row.length];
+			for (int i = 0; i < row.length; i++) {
+				Map<String, Integer> encoder = encoders.get(headers[i]);
+				encodedRow[i] = String.valueOf(encoder.getOrDefault(row[i], -1)); // -1 for unknown values
+			}
+			encodedData.add(encodedRow);
+		}
 
-        while (!candidateSequences.isEmpty()) {
-            // Filter candidates based on minimum support
-            Map<List<String>, Integer> frequentSequences = new HashMap<>();
-            for (Map.Entry<List<String>, Integer> entry : candidateSequences.entrySet()) {
-                if (entry.getValue() >= minSupport) {
-                    frequentSequences.put(entry.getKey(), entry.getValue());
-                }
-            }
+		return encodedData;
+	}
 
-            // Add to global result
-            allFrequentSequences.putAll(frequentSequences);
+	public static List<String[]> selectFeatures(List<String[]> data, String[] headers, List<String> selectedFeatures) {
+		List<Integer> selectedIndices = new ArrayList<>();
+		for (int i = 0; i < headers.length; i++) {
+			if (selectedFeatures.contains(headers[i])) {
+				selectedIndices.add(i);
+			}
+		}
 
-            // Generate next-level candidates
-            candidateSequences = generateNextCandidates(frequentSequences.keySet());
-            countCandidateOccurrences(candidateSequences, sequences);
-        }
+		if (selectedIndices.isEmpty()) {
+			throw new IllegalArgumentException("No matching features found for selection.");
+		}
 
-        return allFrequentSequences;
-    }
+		List<String[]> reducedData = new ArrayList<>();
+		for (String[] row : data) {
+			String[] reducedRow = new String[selectedIndices.size()];
+			for (int j = 0; j < selectedIndices.size(); j++) {
+				reducedRow[j] = row[selectedIndices.get(j)];
+			}
+			reducedData.add(reducedRow);
+		}
 
-    private static Map<List<String>, Integer> generateInitialCandidates(List<List<String>> sequences) {
-        Map<List<String>, Integer> candidates = new HashMap<>();
-        for (List<String> sequence : sequences) {
-            for (String item : sequence) {
-                List<String> singleItemSequence = Collections.singletonList(item);
-                candidates.put(singleItemSequence, candidates.getOrDefault(singleItemSequence, 0) + 1);
-            }
-        }
-        return candidates;
-    }
+		return reducedData;
+	}
 
-    private static Map<List<String>, Integer> generateNextCandidates(Set<List<String>> frequentSequences) {
-        Map<List<String>, Integer> candidates = new HashMap<>();
-        List<List<String>> frequentList = new ArrayList<>(frequentSequences);
+	public static void identifyPatterns(String inputFilePath) throws IOException {
+		try (BufferedReader reader = new BufferedReader(new FileReader(inputFilePath))) {
+			String[] headers = reader.readLine().split(",");
 
-        for (int i = 0; i < frequentList.size(); i++) {
-            for (int j = i + 1; j < frequentList.size(); j++) {
-                List<String> candidate = new ArrayList<>(frequentList.get(i));
-                candidate.addAll(frequentList.get(j));
-                Set<String> uniqueItems = new LinkedHashSet<>(candidate);
-                candidates.put(new ArrayList<>(uniqueItems), 0);
-            }
-        }
-        return candidates;
-    }
+			List<List<Double>> numericData = new ArrayList<>(headers.length);
+			for (int i = 0; i < headers.length; i++) {
+				numericData.add(new ArrayList<>());
+			}
 
-    private static void countCandidateOccurrences(Map<List<String>, Integer> candidates, List<List<String>> sequences) {
-        for (List<String> sequence : sequences) {
-            for (Map.Entry<List<String>, Integer> entry : candidates.entrySet()) {
-                if (isSubsequence(entry.getKey(), sequence)) {
-                    candidates.put(entry.getKey(), entry.getValue() + 1);
-                }
-            }
-        }
-    }
+			String line;
+			while ((line = reader.readLine()) != null) {
+				String[] fields = line.split(",");
+				for (int i = 0; i < fields.length; i++) {
+					try {
+						numericData.get(i).add(Double.parseDouble(fields[i]));
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
 
-    private static boolean isSubsequence(List<String> candidate, List<String> sequence) {
-        int index = 0;
-        for (String item : sequence) {
-            if (index < candidate.size() && item.equals(candidate.get(index))) {
-                index++;
-            }
-        }
-        return index == candidate.size();
-    }
+			System.out.println("\nStatistical Summaries:");
+			for (int i = 0; i < headers.length; i++) {
+				if (!numericData.get(i).isEmpty()) {
+					double mean = numericData.get(i).stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+					double max = numericData.get(i).stream().mapToDouble(Double::doubleValue).max().orElse(0.0);
+					double min = numericData.get(i).stream().mapToDouble(Double::doubleValue).min().orElse(0.0);
+					System.out.printf("%s: Mean=%.2f, Max=%.2f, Min=%.2f%n", headers[i], mean, max, min);
+				}
+			}
+		}
+	}
+
+	public static void splitData(List<String[]> data, String[] headers, String trainingFilePath, String testFilePath,
+			double trainingRatio) throws IOException {
+		Collections.shuffle(data, new Random(42)); // Fixed seed for reproducibility
+		int splitIndex = (int) (data.size() * trainingRatio);
+
+		try (BufferedWriter trainingWriter = new BufferedWriter(new FileWriter(trainingFilePath));
+				BufferedWriter testWriter = new BufferedWriter(new FileWriter(testFilePath))) {
+
+			trainingWriter.write(String.join(",", headers) + "\n");
+			testWriter.write(String.join(",", headers) + "\n");
+
+			for (int i = 0; i < data.size(); i++) {
+				String line = String.join(",", data.get(i)) + "\n";
+				if (i < splitIndex) {
+					trainingWriter.write(line);
+				} else {
+					testWriter.write(line);
+				}
+			}
+		}
+
+		System.out.printf("Data split into %s (training) and %s (test).%n", trainingFilePath, testFilePath);
+	}
 }
