@@ -3,10 +3,12 @@ import weka.clusterers.Clusterer;
 import weka.clusterers.SimpleKMeans;
 import weka.core.Instances;
 import weka.classifiers.*;
-import ca.pfv.spmf.algorithms.clustering.hierarchical_clustering.AlgoHierarchicalClustering;
+import weka.core.converters.ConverterUtils.DataSource;
 
 import java.util.Arrays;
 import java.util.Random;
+
+import java.io.File;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -31,7 +33,7 @@ public class Main {
         Instances test = new Instances(dataset, trainSize, testSize);
 
         //Step 3: Improve above step2's result by applying clustering and classification
-        SimpleKMeans kmeans = BuildingClassifier.clustering(encodedDataset, 3);
+        SimpleKMeans kmeans = BuildingClassifier.clustering(encodedDataset, 4);
         System.out.println(Arrays.toString(kmeans.getClusterSizes()));
         BuildingClassifier.classifyCluster(encodedDataset, kmeans);
 
