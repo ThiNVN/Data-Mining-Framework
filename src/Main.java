@@ -39,7 +39,7 @@ public class Main {
 
         //Build and print J48_Tree classification
         System.out.println("=== J48 ===");
-        Classifier tree = BuildingClassifier.J48_tree(dataset);
+        Classifier tree = BuildingClassifier.J48_tree(train);
         //Evaluate and print J48 classification
         System.out.println("=== J48 evaluation ===");
         Evaluation evalJ48 = BuildingClassifier.evaluateModelMethod(tree, train, test);

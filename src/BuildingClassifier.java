@@ -47,9 +47,9 @@ public class BuildingClassifier {
 
     //J48 Decision tree
     public static Classifier J48_tree(Instances dataset) throws Exception {
+        dataset.setClassIndex(dataset.numAttributes() - 1);
         J48 tree = new J48();
         tree.buildClassifier(dataset);
-        System.out.println(tree.getCapabilities().toString());
         System.out.println(tree.graph());
         return tree;
     }
@@ -299,8 +299,6 @@ public class BuildingClassifier {
                     clusterInstances.add(instance);
                 }
             }
-            Classifier nb = J48_tree(clusterInstances);
-
             // Shuffle the dataset for randomness
             clusterInstances.randomize(new Random(1)); // Seed for reproducibility
 
@@ -311,6 +309,8 @@ public class BuildingClassifier {
             // Generate training and testing sets
             Instances train = new Instances(clusterInstances, 0, trainSize);
             Instances test = new Instances(clusterInstances, trainSize, testSize);
+
+            Classifier nb = J48_tree(train);
 
             evaluateModelMethod(nb, train, test);
         }
