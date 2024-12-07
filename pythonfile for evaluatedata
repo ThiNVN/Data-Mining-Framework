@@ -1,0 +1,33 @@
+from scipy.io import arff
+import pandas as pd
+from sklearn.model_selection import StratifiedKFold
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import accuracy_score
+data, meta = arff.loadarff('weather_classification_data.arff')
+dataset = pd.read_csv("weather_classification_data")
+dataset.dropna(inplace=True)
+K = 10
+skf = StratifiedKFold(n_splits=K, shuffle=True, random_state=42)
+folds = list(skf.split(dataset.drop(columns=['target']), dataset['target']))
+max_depth = 20 * len(dataset.columns)
+for i, (train_index, test_index) in enumerate(folds):
+    X_train, y_train = dataset.iloc[train_index, :-1], dataset.iloc[train_index, -1]
+    X_test, y_test = dataset.iloc[test_index, :-1], dataset.iloc[test_index, -1]
+    
+    param_grid = {'criterion': ['gini', 'entropy'], 'max_depth': [max_depth]}
+    grid_search = GridSearchCV(DecisionTreeClassifier(), param_grid, cv=9)
+    grid_search.fit(X_train, y_train)
+    
+    y_pred = grid_search.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    if grid_search.best_params_['criterion'] == 'gini':
+        accuracy_gini.append(accuracy)
+    else:
+        accuracy_entropy.append(accuracy)
+overall_accuracy_gini = sum(accuracy_gini) / len(accuracy_gini)
+overall_accuracy_entropy = sum(accuracy_entropy) / len(accuracy_entropy)
+print(f"Overall accuracy with Gini: {overall_accuracy_gini}")
+print(f"Overall accuracy with Entropy: {overall_accuracy_entropy}")
+print(f"The impurity measure that gives the best results is: {('Gini' if overall_accuracy_gini > overall_accuracy_entropy else 'Entropy')}")
+
