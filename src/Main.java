@@ -37,13 +37,26 @@ public class Main {
         System.out.println(Arrays.toString(kmeans.getClusterSizes()));
         BuildingClassifier.classifyCluster(encodedDataset, kmeans);
 
+        //Build and print J48_Tree classification
+        System.out.println("=== J48 ===");
+        Classifier tree = BuildingClassifier.J48_tree(dataset);
+        //Evaluate and print J48 classification
+        System.out.println("=== J48 evaluation ===");
+        Evaluation evalJ48 = BuildingClassifier.evaluateModelMethod(tree, train, test);
+        System.out.println("AUC = " + evalJ48.areaUnderPRC(0));
+        System.out.println("Precision = " + evalJ48.precision(0));
+        System.out.println("Recall = " + evalJ48.recall(0));
+        System.out.println("fMeasure = " + evalJ48.fMeasure(0));
+        System.out.println("Error rate = " + evalJ48.errorRate() + "\n");
+        System.out.println(evalJ48.toMatrixString("=== Overall Confusion Matrix ===\n"));
+
         //Step 2: Build classification algorithm
         //Build and print OneR classification
         System.out.println("=== OneR ===");
-        Classifier tree = BuildingClassifier.oneR(dataset);
+        Classifier oneR = BuildingClassifier.oneR(dataset);
         //Evaluate and print OneR classification
         System.out.println("=== OneR evaluation ===");
-        Evaluation evalOneR = BuildingClassifier.evaluateModelMethod(tree, train, test);
+        Evaluation evalOneR = BuildingClassifier.evaluateModelMethod(oneR, train, test);
         System.out.println("AUC = " + evalOneR.areaUnderPRC(0));
         System.out.println("Precision = " + evalOneR.precision(0));
         System.out.println("Recall = " + evalOneR.recall(0));
@@ -62,6 +75,12 @@ public class Main {
         System.out.println("fMeasure = " + evalNB.fMeasure(0));
         System.out.println("Error rate = " + evalNB.errorRate() + "\n");
         System.out.println(evalOneR.toMatrixString("=== Overall Confusion Matrix ===\n"));
+
+        //Sequential Pattern Mining
+        //Remove numeric attributes
+        Instances removedDataset = ProcessDataset.removeAttribute(dataset, "1,2,3,4,6,7,9");
+        //Apply Apriori to find rules
+        BuildingClassifier.aprioriRules(removedDataset);
 
         //Step 4: Evaluate model using 10-fold cross-validation
 

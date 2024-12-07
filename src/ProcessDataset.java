@@ -21,13 +21,14 @@ public class ProcessDataset {
         saver.writeBatch();
     }
 
-    public Instances removeAttribute(Instances data) throws Exception {
+    public static Instances removeAttribute(Instances data, String removeAttributes) throws Exception {
         //Remove 1st attribute
-        String[] opts = new String[]{"-R","1"};
+        String[] opts = new String[]{"-R", removeAttributes};
         Remove remove = new Remove();
         remove.setOptions(opts);
         remove.setInputFormat(data);
 
         return Filter.useFilter(data, remove);
     }
+
 }

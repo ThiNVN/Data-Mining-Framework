@@ -256,7 +256,7 @@ public class BuildingClassifier {
     }
 
     //Association rules
-    public void associationRules(Instances dataset) throws Exception {
+    public static void aprioriRules(Instances dataset) throws Exception {
         //Apriori model
         Apriori apriori = new Apriori();
         //Build model
