@@ -18,19 +18,12 @@ public class Main {
         Instances dataset = BuildingClassifier.loadData("src/data/weather_classification.arff");
         //Encode the nominal attributes
         Instances encodedDataset = BuildingClassifier.encodeNominalToBinary(dataset, "5,8,10");
-
+        //Set class attribute for dataset
         dataset.setClassIndex(dataset.numAttributes() - 1);
-
-        // Shuffle the dataset for randomness
-        dataset.randomize(new Random(1)); // Seed for reproducibility
-
-        // Split percentage for training (70% training, 30% testing)
-        int trainSize = (int) Math.round(dataset.numInstances() * 0.7);
-        int testSize = dataset.numInstances() - trainSize;
-
-        // Generate training and testing sets
-        Instances train = new Instances(dataset, 0, trainSize);
-        Instances test = new Instances(dataset, trainSize, testSize);
+        //Split trainTest
+        Instances[] trainTest = BuildingClassifier.splitTrainTest(dataset);
+        Instances train = trainTest[0];
+        Instances test = trainTest[1];
 
         //Step 3: Improve above step2's result by applying clustering and classification
         SimpleKMeans kmeans = BuildingClassifier.clustering(encodedDataset, 4);

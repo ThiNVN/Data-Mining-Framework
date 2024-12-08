@@ -23,6 +23,7 @@ import weka.filters.unsupervised.attribute.NominalToBinary;
 import weka.filters.Filter;
 
 import java.util.Random;
+import javafx.util.Pair;
 
 public class BuildingClassifier {
 
@@ -265,8 +266,32 @@ public class BuildingClassifier {
         System.out.println(apriori);
     }
 
+    //Split train test
+    public static Instances[] splitTrainTest(Instances dataset) throws Exception {
+        Instances[] traintest = new Instances[2];
+        // Shuffle the dataset for randomness
+        dataset.randomize(new Random(1)); // Seed for reproducibility
+
+        // Split percentage for training (70% training, 30% testing)
+        int trainSize = (int) Math.round(dataset.numInstances() * 0.7);
+        int testSize = dataset.numInstances() - trainSize;
+
+        // Generate training and testing sets
+        Instances train = new Instances(dataset, 0, trainSize);
+        Instances test = new Instances(dataset, trainSize, testSize);
+
+        traintest[0] = train;
+        traintest[1] = test;
+
+        return traintest;
+    }
+
     //Clustering
     public static weka.clusterers.SimpleKMeans clustering(Instances dataset, int numberOfClusters) throws Exception {
+        Instances[] traintest = splitTrainTest(dataset);
+        Instances train = traintest[0];
+        Instances test = traintest[1];
+
         //New instance of clusterer
         SimpleKMeans kmeans = new SimpleKMeans();
         //Number of clusters
@@ -280,7 +305,7 @@ public class BuildingClassifier {
         //Evaluate clusterer
         ClusterEvaluation clusterEvaluation = new ClusterEvaluation();
         clusterEvaluation.setClusterer(kmeans);
-        clusterEvaluation.evaluateClusterer(dataset);
+        clusterEvaluation.evaluateClusterer(test);
         System.out.println(clusterEvaluation.clusterResultsToString());
 
         return kmeans;
@@ -299,20 +324,12 @@ public class BuildingClassifier {
                     clusterInstances.add(instance);
                 }
             }
-            // Shuffle the dataset for randomness
-            clusterInstances.randomize(new Random(1)); // Seed for reproducibility
+            //Train data: traintest[0]      Test data: traintest[1]
+            Instances[] traintest = splitTrainTest(clusterInstances);
 
-            // Split percentage for training (70% training, 30% testing)
-            int trainSize = (int) Math.round(clusterInstances.numInstances() * 0.7);
-            int testSize = clusterInstances.numInstances() - trainSize;
+            Classifier nb = J48_tree(traintest[0]);
 
-            // Generate training and testing sets
-            Instances train = new Instances(clusterInstances, 0, trainSize);
-            Instances test = new Instances(clusterInstances, trainSize, testSize);
-
-            Classifier nb = J48_tree(train);
-
-            evaluateModelMethod(nb, train, test);
+            evaluateModelMethod(nb, traintest[0], traintest[1]);
         }
     }
 
