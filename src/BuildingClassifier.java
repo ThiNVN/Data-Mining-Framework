@@ -21,9 +21,9 @@ import weka.core.converters.ConverterUtils.DataSource;
 import weka.filters.unsupervised.attribute.Remove;
 import weka.filters.unsupervised.attribute.NominalToBinary;
 import weka.filters.Filter;
+import weka.filters.unsupervised.instance.Randomize;
 
 import java.util.Random;
-import javafx.util.Pair;
 
 public class BuildingClassifier {
 
@@ -147,44 +147,17 @@ public class BuildingClassifier {
     }
 
     //Cross-validation using 10 folds
-    public static void evaluateModelFolds(weka.classifiers.Classifier classifier, Instances training_set, Instances test_set) throws Exception {
-        training_set.setClassIndex(training_set.numAttributes() - 1);
-        //Initialize
-        int seed = 1;
-        int folds = 10;
-        Random rand = new Random(seed);
+    public static void evaluateModelFolds(weka.classifiers.Classifier classifier, Instances dataset) throws Exception {
+        System.out.println("Cross-validation using 10 folds");
+        weka.classifiers.Evaluation eval = new weka.classifiers.Evaluation(dataset);
+        eval.crossValidateModel(classifier, dataset, 10, new Random(1));
 
-        //Test set
-        test_set.setClassIndex(test_set.numAttributes() - 1);
-        //Create random dataset
-        Instances randData = new Instances(training_set);
-        randData.randomize(rand);
-        //Stratify
-        if (randData.classAttribute().isNominal()) {
-            randData.stratify(folds);
-        }
-
-        //Perform cross-validation
-        for (int i = 0; i < folds; i++) {
-            Evaluation eval = new Evaluation(randData);
-            //Get the folds
-            Instances train = randData.trainCV(folds, i);
-            Instances test = randData.testCV(folds, i);
-            //Evaluate classifier
-            eval.evaluateModel(classifier, test);
-
-            //Print evaluation
-            System.out.println(eval.toSummaryString("Evaluation result:\n", false));
-            /*
-            System.out.println("AUC = " + eval.areaUnderPRC(0));
-            System.out.println("Precision = " + eval.precision(0));
-            System.out.println("Recall = " + eval.recall(0));
-            System.out.println("fMeasure = " + eval.fMeasure(0));
-            System.out.println("Error rate = " + eval.errorRate() + "\n");
-            System.out.println(eval.toMatrixString("=== Overall Confusion Matrix ===\n"));
-            */
-        }
-
+        System.out.println(eval.toSummaryString());
+        System.out.println("=== Classifier Accuracy ===");
+        System.out.println("Correctly Classified Instances: " + eval.pctCorrect() + "%");
+        System.out.println("Incorrectly Classified Instances: " + eval.pctIncorrect() + "%");
+        System.out.println(eval.toClassDetailsString());
+        System.out.println(eval.toMatrixString());
     }
 
     //Make prediction
@@ -324,36 +297,26 @@ public class BuildingClassifier {
                     clusterInstances.add(instance);
                 }
             }
+            ProcessDataset.saveInstances(clusterInstances, "src/data/cluster" + i + ".arff");
+
+            clusterInstances.randomize(new Random(42));
             //Train data: traintest[0]      Test data: traintest[1]
             Instances[] traintest = splitTrainTest(clusterInstances);
 
-            Classifier nb = J48_tree(traintest[0]);
+            System.out.println("J48 tree of Cluster " + i + ":\n");
+            Classifier tree = J48_tree(traintest[0]);
 
-            evaluateModelMethod(nb, traintest[0], traintest[1]);
+            evaluateModelFolds(tree, clusterInstances);
+
+            Evaluation evalJ48 = evaluateModelMethod(tree, traintest[0], traintest[1]);
+            System.out.println("AUC = " + evalJ48.areaUnderPRC(0));
+            System.out.println("Precision = " + evalJ48.precision(0));
+            System.out.println("Recall = " + evalJ48.recall(0));
+            System.out.println("fMeasure = " + evalJ48.fMeasure(0));
+            System.out.println("Error rate = " + evalJ48.errorRate() + "\n");
+            System.out.println(evalJ48.toMatrixString("=== Overall Confusion Matrix ===\n"));
+
         }
-    }
-
-    //Clustering with ignored attribute
-    public static weka.clusterers.SimpleKMeans clusteringWithIgnored(Instances dataset, int numberOfClusters, String activeAttribute) throws Exception {
-        //New instance of clusterer
-        SimpleKMeans kmeans = new SimpleKMeans();
-        //Number of clusters
-        kmeans.setNumClusters(numberOfClusters);
-        //Set distance function
-        EuclideanDistance distanceFunction = new EuclideanDistance();
-        distanceFunction.setAttributeIndices(activeAttribute);
-        kmeans.setDistanceFunction(distanceFunction);
-        //Build clusterer
-        kmeans.buildClusterer(dataset);
-        System.out.println(kmeans);
-
-        //Evaluate clusterer
-        ClusterEvaluation clusterEvaluation = new ClusterEvaluation();
-        clusterEvaluation.setClusterer(kmeans);
-        clusterEvaluation.evaluateClusterer(dataset);
-        System.out.println(clusterEvaluation.clusterResultsToString());
-
-        return kmeans;
     }
 
     //Encode nominal

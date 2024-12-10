@@ -16,7 +16,7 @@ public class Main {
         ProcessDataset.csvToArff("src/data/cleaned_weather_data.csv");
         // Load the dataset
         Instances dataset = BuildingClassifier.loadData("src/data/weather_classification.arff");
-        //Encode the nominal attributes
+        //Encode the categorical attributes
         Instances encodedDataset = BuildingClassifier.encodeNominalToBinary(dataset, "5,8,10");
         //Set class attribute for dataset
         dataset.setClassIndex(dataset.numAttributes() - 1);
@@ -26,7 +26,7 @@ public class Main {
         Instances test = trainTest[1];
 
         //Step 3: Improve above step2's result by applying clustering and classification
-        SimpleKMeans kmeans = BuildingClassifier.clustering(encodedDataset, 4);
+        SimpleKMeans kmeans = BuildingClassifier.clustering(encodedDataset, 3);
         System.out.println(Arrays.toString(kmeans.getClusterSizes()));
         BuildingClassifier.classifyCluster(encodedDataset, kmeans);
 
